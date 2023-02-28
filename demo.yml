@@ -1,0 +1,11 @@
+tenant_id: zxf97648
+teams:
+  global-pcf-a:
+    cost-center: ct-4291
+    entity: ab-3
+    host-group-prefixes:
+      - global-pcf-a-Z
+      - global-pcf-a-Y
+  global-pcf-b:
+    cost-center: ct-4291
+    entity: ab-3
