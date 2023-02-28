@@ -113,19 +113,36 @@ def create_rule(token: str, name:str, id: str, host_group: str):
     except requests.exceptions.HTTPError as err:
         raise SystemExit(err)
 
+def create_rule2(token: str, name:str, id: str, host_group: str, payload:str):
+    """ Creates a rule with predefined payload, by updating a MZ"""
+    try:
+        headers = {'Authorization': "Api-Token " + token}
+        json_data = {
+            'name': name,
+            'rule': [payload]
+                    }
+        response = requests.put(f'https://heb24347.live.dynatrace.com/api/config/v1/managementZones/{id}',
+                                headers=headers,
+                                json=json_data)
+    except requests.exceptions.HTTPError as err:
+        raise SystemExit(err)
 
-def define_payload():
+def define_payload(token: str, name: str, id: str, tup: NameHostGroup):
     """ Configure payload"""
-    payload = {'type': 'PROCESS_GROUP',
-               'enabled': True,
-               'propagationTypes': ['PROCESS_GROUP_TO_SERVICE',
-               'PROCESS_GROUP_TO_HOST'],
-               'conditions': [{'key': {'attribute': 'HOST_GROUP_NAME'},
-               'comparisonInfo': {'type': 'STRING',
-               'operator': 'BEGINS_WITH',
-               'value': host_group,
-               'negate': False,
-               'caseSensitive': True}}]}
+    if tup.host_group:
+        for el in tup.host_group:
+            payload = {'type': 'PROCESS_GROUP',
+                    'enabled': True,
+                    'propagationTypes': ['PROCESS_GROUP_TO_SERVICE',
+                    'PROCESS_GROUP_TO_HOST'],
+                    'conditions': [{'key': {'attribute': 'HOST_GROUP_NAME'},
+                    'comparisonInfo': {'type': 'STRING',
+                    'operator': 'BEGINS_WITH',
+                    'value': el,
+                    'negate': False,
+                    'caseSensitive': True}}]}
+            # Add rule to mz 
+            create_rule2(token, name, id, payload)
 def main():
     # gets all mz 
     all_mz = get_all_mz(secrets.API_TOKEN, 'https://heb24347.live.dynatrace.com/api/config/v1/managementZones')
