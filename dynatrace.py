@@ -1,3 +1,5 @@
+""" Dynatrace management zones request """
+
 import argparse
 from unicodedata import name
 import yaml
@@ -10,6 +12,7 @@ class NameHostGroup(NamedTuple):
     """ Holds team's entity and host-group-prefixes"""
     entity: int
     host_group: List[str]
+
 
 # Defines the parser to accept arguments
 parser = argparse.ArgumentParser(description='Dynatrace management zones tool')
@@ -46,13 +49,13 @@ def dt_auth(token: str, dt_url: str):
         raise SystemExit(err)
 
 
-def create_mz(token: str, dt_url: str, name: str, rule:str):
+def create_mz(token: str, dt_url: str, name: str):
     """ Creates a new management zone """
     try:
         headers = {'Authorization': "Api-Token " + token,
                    'Content-Type': 'application/json',}
         json_data = {'name': name,
-                     'rule': rule}
+                     'rule': []}
 
         resp = requests.post(dt_url, headers=headers, json=json_data)
         resp.raise_for_status()
@@ -89,31 +92,7 @@ def deletes_all_rules(token: str, name: str, id:str):
         raise SystemExit(err)
 
 
-def create_rule(token: str, name:str, id: str, host_group: str):
-    """ Creates a rule with predefined payload, by updating a MZ"""
-    try:
-        headers = {'Authorization': "Api-Token " + token}
-        json_data = {
-            'name': name,
-            'rule': [{'type': 'PROCESS_GROUP',
-                        'enabled': True,
-                        'propagationTypes': ['PROCESS_GROUP_TO_SERVICE',
-                        'PROCESS_GROUP_TO_HOST'],
-                        'conditions': [{'key': {'attribute': 'HOST_GROUP_NAME'},
-                        'comparisonInfo': {'type': 'STRING',
-                        'operator': 'BEGINS_WITH',
-                        'value': host_group,
-                        'negate': False,
-                        'caseSensitive': True}}]}
-                    ]
-                    }
-        response = requests.put(f'https://heb24347.live.dynatrace.com/api/config/v1/managementZones/{id}',
-                                headers=headers,
-                                json=json_data)
-    except requests.exceptions.HTTPError as err:
-        raise SystemExit(err)
-
-def create_rule2(token: str, name:str, id: str, host_group: str, payload:str):
+def create_rule(token: str, name:str, id: str, payload:str):
     """ Creates a rule with predefined payload, by updating a MZ"""
     try:
         headers = {'Authorization': "Api-Token " + token}
@@ -127,8 +106,8 @@ def create_rule2(token: str, name:str, id: str, host_group: str, payload:str):
     except requests.exceptions.HTTPError as err:
         raise SystemExit(err)
 
-def define_payload(token: str, name: str, id: str, tup: NameHostGroup):
-    """ Configure payload"""
+def add_rules(token: str, name: str, id: str, tup: NameHostGroup):
+    """ Adds rules to mz"""
     if tup.host_group:
         for el in tup.host_group:
             payload = {'type': 'PROCESS_GROUP',
@@ -142,7 +121,7 @@ def define_payload(token: str, name: str, id: str, tup: NameHostGroup):
                     'negate': False,
                     'caseSensitive': True}}]}
             # Add rule to mz 
-            create_rule2(token, name, id, payload)
+            create_rule(token, name, id, payload)
 def main():
     # gets all mz 
     all_mz = get_all_mz(secrets.API_TOKEN, 'https://heb24347.live.dynatrace.com/api/config/v1/managementZones')
@@ -150,17 +129,16 @@ def main():
         # Check if mz already exists
         if el.entity in all_mz.keys():
             # deletes all the rules 
-            deletes_all_rules(secrets.API_TOKEN, el.entity, all_mz[el.entity])
+            deletes_all_rules(secrets.API_TOKEN, el.entity, el.entity)
             # if there are non emty host-group-prefixes creates a new rule 
-            if el.host_group:
-                for h in el.host_group:
-                    create_rule(secrets.API_TOKEN, el.entity, all_mz[el.entity], h)
-            else:
-                pass
+            add_rules(secrets.API_TOKEN, el.entity, el.entity, el)
         else:
             # creates a new mz
-            create_mz(secrets.API_TOKEN, 'https://heb24347.live.dynatrace.com/api/config/v1/managementZones', el.entity, rule)
-    print(all_mz)
+            create_mz(secrets.API_TOKEN, 'https://heb24347.live.dynatrace.com/api/config/v1/managementZones', el.entity)
+            # adds rules to new mz if host-group-prefixes are present
+            if el.host_group:
+                add_rules(secrets.API_TOKEN, el.entity, el.entity, el)
+                
 
 if __name__ == "__main__":
     main()
